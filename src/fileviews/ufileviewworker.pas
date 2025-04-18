@@ -10,7 +10,7 @@ uses
   DCBasicTypes,
   uFileSourceOperation,
   uFileSourceListOperation,
-  fQuickSearch,uMasks;
+  fQuickSearch,uMasks,uMasksExt;
 
 type
   TFileViewWorkType = (fvwtNone,
@@ -111,7 +111,7 @@ type
 
 
     class function InternalMatchesFilter(const fs: IFileSource; aFile: TFile;
-      const aMasks: TMaskList; const aFilterOptions: TQuickSearchOptions): Boolean;overload;
+      const aMasks: TMaskListExtended; const aFilterOptions: TQuickSearchOptions): Boolean;overload;
 
 
   protected
@@ -625,7 +625,7 @@ end;
 class function TFileListBuilder.InternalMatchesFilter(
   const fs: IFileSource;
   aFile: TFile;
-  const aMasks: TMaskList;
+  const aMasks: TMaskListExtended;
   const aFilterOptions: TQuickSearchOptions): Boolean;
 begin
   if (gShowSystemFiles = False) and fs.IsSystemFile(AFile) and (AFile.Name <> '..') then
@@ -653,7 +653,7 @@ begin
     else
     begin
       // Match the file name and Pinyin letter
-      if aMasks.Matches(AFile.Name) then
+      if aMasks.Matches(AFile) then
          Result := False;
     end;
   end
@@ -703,7 +703,7 @@ var
   I: Integer;
   AFile: TFile;
   AFilter: Boolean;
-  Masks: TMaskList;
+  Masks: TMaskListExtended;
   AOptions: TMaskOptions = [moPinyin];
 begin
   filteredDisplayFiles.Clear;
@@ -712,13 +712,21 @@ begin
 
   if Assigned(allDisplayFiles) then
   try
-    Masks:= TMaskList.Create(aFileFilter, ';,', AOptions);
+    Masks:= TMaskListExtended.Create(aFileFilter, ';', AOptions, ' ');
 
     for I := 0 to Masks.Count - 1 do
     begin
-      S:= Masks.Items[I].Template;
-      S:= PrepareFilter(S, aFilterOptions);
-      Masks.Items[I].Template:= S;
+      if (Masks.Items[I] is TMaskExtended) then
+      begin
+        S := Masks.Items[I].Template;
+        S := PrepareFilter(S, aFilterOptions);
+        Masks.Items[I].Template := S;
+      end
+      else
+      begin
+        Masks.Items[I].MatchBeg := (qsmBeginning in aFilterOptions.Match);
+        Masks.Items[I].MatchEnd := (qsmEnding in aFilterOptions.Match);
+      end;
     end;
 
     for I := 0 to allDisplayFiles.Count - 1 do
